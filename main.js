@@ -63,6 +63,15 @@
     });
   }
 
+  // Track-relative time. With gapless playback the <video> timeline keeps running
+  // across tracks, so video.currentTime/duration can't be used; the player API can.
+  function trackTime() {
+    const p = player();
+    const current = p?.getCurrentTime?.();
+    const duration = p?.getDuration?.();
+    return { current: typeof current === "number" ? current : NaN, duration: typeof duration === "number" ? duration : NaN };
+  }
+
   window.addEventListener("ytmnp:cmd", (e) => {
     let msg;
     try {
@@ -74,7 +83,11 @@
     if (msg.cmd === "setVolume") setVolume(msg.value);
     else if (msg.cmd === "toggleMute") toggleMute();
     else if (msg.cmd === "closeMenus") closeMenus();
-    else if (msg.cmd === "queueThumbs") reply = { thumbs: queueThumbs(msg.selector) };
+    else if (msg.cmd === "getTime") reply = trackTime();
+    else if (msg.cmd === "seekTo") {
+      player()?.seekTo?.(Math.max(0, msg.value), true);
+      reply = trackTime();
+    } else if (msg.cmd === "queueThumbs") reply = { thumbs: queueThumbs(msg.selector) };
     window.dispatchEvent(new CustomEvent("ytmnp:state", { detail: JSON.stringify(reply || state()) }));
   });
 })();

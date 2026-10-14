@@ -76,6 +76,7 @@
     thumb: inBar(".thumbnail-image-wrapper img", "img.image", "img.ytmusicTrackInfoThumbnail"),
     rightControls: inBar(".right-controls-buttons", ".ytMusicMiniPlayerRightSection"),
     cast: inBar("#cast-button", "google-cast-launcher"),
+    timeInfo: inBar(".time-info", ".ytMusicMiniPlayerTimeInfo"),
     video: "#movie_player video, video.html5-main-video, video",
     dropdowns: "ytmusic-popup-container tp-yt-iron-dropdown",
     menuItems:
@@ -273,15 +274,15 @@
     tRem = h("span", { class: "ytmnp-time ytmnp-time-right" });
     seek = makeSlider("ytmnp-seek", {
       onInput: (r) => {
-        const v = video();
-        if (v && isFinite(v.duration)) {
-          tCur.textContent = fmt(r * v.duration);
-          tRem.textContent = `-${fmt(v.duration - r * v.duration)}`;
+        const { duration } = readTime();
+        if (duration > 0) {
+          tCur.textContent = fmt(r * duration);
+          tRem.textContent = `-${fmt(duration - r * duration)}`;
         }
       },
       onCommit: (r) => {
-        const v = video();
-        if (v && isFinite(v.duration)) v.currentTime = r * v.duration;
+        const { duration } = readTime();
+        if (duration > 0) bridge("seekTo", { value: r * duration });
       },
     });
 
@@ -373,6 +374,22 @@
       true
     );
     document.body.append(root);
+  }
+
+  // Track time. Gapless playback keeps the <video> timeline running across tracks
+  // (e.g. 27:44 into a 3:38 song), so prefer the player API, then YTM's own
+  // "0:15 / 3:21" label, and only then the raw <video> element.
+  const parseClock = (s) => s.split(":").reduce((acc, n) => acc * 60 + Number(n), 0);
+
+  function readTime() {
+    const api = bridge("getTime");
+    const label = $(SEL.timeInfo)?.textContent.match(/(\d+(?::\d{2})+)\s*\/\s*(\d+(?::\d{2})+)/);
+    const text = label && { current: parseClock(label[1]), duration: parseClock(label[2]) };
+    const apiOk = api && api.duration > 0 && api.current >= 0 && api.current <= api.duration + 1;
+    if (apiOk && (!text || Math.abs(api.duration - text.duration) <= 2)) return api;
+    if (text && text.duration > 0) return text;
+    const v = video();
+    return v && isFinite(v.duration) ? { current: v.currentTime, duration: v.duration } : { current: 0, duration: 0 };
   }
 
   function togglePlayFallback() {
@@ -632,10 +649,11 @@
     const v = video();
     if (v) {
       setIcon(playBtn, v.paused ? "play" : "pause");
-      if (!seek.dragging && isFinite(v.duration) && v.duration > 0) {
-        seek.paint(v.currentTime / v.duration);
-        tCur.textContent = fmt(v.currentTime);
-        tRem.textContent = `-${fmt(v.duration - v.currentTime)}`;
+      const { current, duration } = readTime();
+      if (!seek.dragging && duration > 0) {
+        seek.paint(current / duration);
+        tCur.textContent = fmt(current);
+        tRem.textContent = `-${fmt(duration - current)}`;
       }
     }
 
