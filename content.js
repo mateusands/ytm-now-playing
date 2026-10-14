@@ -509,6 +509,7 @@
       queueSig = "";
       renderQueue(true);
     }
+    root.scrollTop = 0;
   }
 
   // Skip the hidden "video" counterparts (#counterpart-renderer), which showed up as duplicates.
@@ -577,7 +578,11 @@
       return row;
     });
     queueList.replaceChildren(...rows);
-    if (scrollToCurrent && currentRow) currentRow.scrollIntoView({ block: "center" });
+    // Scroll only the list: scrollIntoView would also scroll the overlay itself
+    // (overflow: hidden still scrolls programmatically) and shift the whole view up.
+    if (scrollToCurrent && currentRow) {
+      queueList.scrollTop = currentRow.offsetTop - queueList.clientHeight / 2 + currentRow.offsetHeight / 2;
+    }
   }
 
   // ---------- Repeat / like state (both UIs) ----------

@@ -522,8 +522,10 @@ html.ytmnp-lock body {
   font-weight: 700;
 }
 .ytmnp-queue-list {
+  position: relative; /* offsetTop of rows is measured against the list */
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px 8px 12px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
