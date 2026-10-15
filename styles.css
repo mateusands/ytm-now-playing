@@ -612,3 +612,14 @@ html.ytmnp-hide-native-menu ytmusic-popup-container tp-yt-iron-dropdown {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* Respect the system "reduce motion" setting */
+@media (prefers-reduced-motion: reduce) {
+  .ytmnp-root,
+  .ytmnp-root * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

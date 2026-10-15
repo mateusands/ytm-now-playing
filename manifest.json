@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YTM Now Playing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A clean Now Playing screen for YouTube Music, with large cover art and a blurred ambient background.",
   "action": {
     "default_title": "Toggle Now Playing"

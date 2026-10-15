@@ -124,9 +124,12 @@
     return b;
   }
 
+  // Warn when a native control is missing: YTM changes its markup without notice,
+  // and otherwise the button would just silently do nothing.
   const clickNative = (sel) => {
     const el = $(sel);
     if (el) el.click();
+    else console.warn("[ytmnp] native control not found:", sel);
     return !!el;
   };
 
@@ -351,6 +354,11 @@
       },
       true
     );
+    // Don't let mouse clicks focus our buttons: a focused button would take the next
+    // Space press (e.g. toggle shuffle again instead of play/pause). Tab focus still works.
+    root.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button")) e.preventDefault();
+    });
     document.body.append(root);
   }
 
