@@ -8,6 +8,8 @@ from the current cover that cross-fades on every track change.
 It is a plain Manifest V3 browser extension: no build step, no dependencies, no data collection, no
 network requests of its own.
 
+![YTM Now Playing screenshot](docs/screenshot.png)
+
 ## Features
 
 - Title, artist and album (click the album to open it)
@@ -59,6 +61,10 @@ page's `<video>` element. YouTube Music enforces Trusted Types, so the UI is bui
 
 YouTube Music changes its markup from time to time; if a control stops working, the selectors live
 in the `SEL` object at the top of `content.js`.
+
+## License
+
+[MIT](LICENSE)
 
 ## Disclaimer
 
