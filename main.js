@@ -14,11 +14,46 @@
     const s = slider();
     let volume = s && typeof s.value === "number" ? s.value : p?.getVolume?.();
     if (typeof volume !== "number") volume = 100;
+    // While fading, report where we're heading so the UI and nudges don't lag behind.
+    if (fade) volume = fade.target;
     return { volume, muted: !!p?.isMuted?.() };
   }
 
+  // Volume changes fade over ~150 ms instead of jumping, which sounds harsh.
+  // Only the player is stepped during the fade; YTM's slider is synced at the end.
+  // setTimeout rather than requestAnimationFrame so the fade also finishes in a background tab.
+  const FADE_MS = 150;
+  let fade = null;
+
   function setVolume(v) {
     v = Math.round(Math.min(100, Math.max(0, v)));
+    const p = player();
+    if (!p?.setVolume || !p.getVolume) return syncVolume(v);
+    if (v > 0 && p.isMuted?.()) p.unMute();
+    if (fade) {
+      fade.target = v;
+      return;
+    }
+    fade = { target: v, value: p.getVolume(), last: performance.now() };
+    const step = (now) => {
+      const dt = now - fade.last;
+      fade.last = now;
+      const diff = fade.target - fade.value;
+      // Exponential approach: ~95% of the way after FADE_MS.
+      fade.value += diff * Math.min(1, (3 * dt) / FADE_MS);
+      if (Math.abs(fade.target - fade.value) < 0.5) {
+        const target = fade.target;
+        fade = null;
+        syncVolume(target);
+        return;
+      }
+      p.setVolume(Math.round(fade.value));
+      setTimeout(() => step(performance.now()), 16);
+    };
+    setTimeout(() => step(performance.now()), 16);
+  }
+
+  function syncVolume(v) {
     const p = player();
     const s = slider();
     // Update YTM's own slider (keeps the app state in sync) and the player.
@@ -63,6 +98,18 @@
     });
   }
 
+  // Play a queue item the way YTM's own tap handler does: navigate to the item's
+  // watchEndpoint (videoId + playlistId + index), which switches tracks in place.
+  function playQueueItem(selector, index) {
+    const items = [...document.querySelectorAll(selector)].filter((it) => !it.closest("#counterpart-renderer"));
+    const it = items[index];
+    const d = it?.data || it?.__data?.data || {};
+    const endpoint = d.navigationEndpoint;
+    if (!endpoint) return { ok: false };
+    it.dispatchEvent(new CustomEvent("yt-navigate", { bubbles: true, composed: true, detail: { endpoint } }));
+    return { ok: true };
+  }
+
   // Track-relative time. With gapless playback the <video> timeline keeps running
   // across tracks, so video.currentTime/duration can't be used; the player API can.
   function trackTime() {
@@ -88,6 +135,7 @@
       player()?.seekTo?.(Math.max(0, msg.value), true);
       reply = trackTime();
     } else if (msg.cmd === "queueThumbs") reply = { thumbs: queueThumbs(msg.selector) };
+    else if (msg.cmd === "playQueueItem") reply = playQueueItem(msg.selector, msg.index);
     window.dispatchEvent(new CustomEvent("ytmnp:state", { detail: JSON.stringify(reply || state()) }));
   });
 })();

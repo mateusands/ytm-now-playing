@@ -121,7 +121,7 @@ html.ytmnp-lock body {
   border-radius: 999px;
 }
 .ytmnp-pill-btn {
-  width: 42px;
+  width: 38px;
   height: 38px;
   color: var(--np-fg-2);
 }
@@ -185,33 +185,6 @@ html.ytmnp-lock body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ytmnp-album {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-  font-size: clamp(16px, 1.55vw, 24px);
-  font-weight: 500;
-  color: var(--np-fg-2);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ytmnp-album:hover {
-  color: var(--np-fg);
-}
-.ytmnp-chev {
-  color: var(--np-fg-3);
-  font-size: 1.1em;
-  transform: translateY(-1px);
-}
-
 /* Main pill-shaped controls */
 .ytmnp-controls {
   display: flex;

@@ -11,13 +11,13 @@
     en: {
       playPause: "Play/Pause", prev: "Previous", next: "Next", shuffle: "Shuffle", repeat: "Repeat",
       like: "Like", more: "More", queue: "Queue", closeQueue: "Close queue", close: "Close",
-      playingOn: "Playing on", volume: "Volume (click to mute)",
+      volume: "Volume (click to mute)",
       queueEmpty: "The queue hasn't loaded yet.", openNativeQueue: "Open YouTube Music queue",
     },
     pt: {
       playPause: "Play/Pause", prev: "Anterior", next: "Próxima", shuffle: "Aleatório", repeat: "Repetir",
       like: "Curtir", more: "Mais", queue: "Fila", closeQueue: "Fechar fila", close: "Fechar",
-      playingOn: "Tocando em", volume: "Volume (clique = mudo)",
+      volume: "Volume (clique = mudo)",
       queueEmpty: "A fila ainda não foi carregada.", openNativeQueue: "Abrir fila do YouTube Music",
     },
   };
@@ -25,7 +25,6 @@
   const ICONS = {
     back: "M15.4 4.6 14 3.2 5.2 12l8.8 8.8 1.4-1.4L8 12z",
     close: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.59 17.59 19 19 17.59 13.41 12z",
-    cast: "M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
     queue: "M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z",
     prev: "M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z",
     next: "M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z",
@@ -75,7 +74,6 @@
     byline: inBar(".byline", ".ytmusicTrackInfoByline"),
     thumb: inBar(".thumbnail-image-wrapper img", "img.image", "img.ytmusicTrackInfoThumbnail"),
     rightControls: inBar(".right-controls-buttons", ".ytMusicMiniPlayerRightSection"),
-    cast: inBar("#cast-button", "google-cast-launcher"),
     timeInfo: inBar(".time-info", ".ytMusicMiniPlayerTimeInfo"),
     video: "#movie_player video, video.html5-main-video, video",
     dropdowns: "ytmusic-popup-container tp-yt-iron-dropdown",
@@ -83,6 +81,9 @@
       "ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, " +
       "ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer",
     queueItems: "ytmusic-player-queue ytmusic-player-queue-item",
+    // Song / Video switch above the player. playback-mode is OMV_PREFERRED in video mode.
+    avToggle: "ytmusic-av-toggle",
+    songButton: "ytmusic-av-toggle .song-button",
   };
 
   const $ = (s, root = document) => root.querySelector(s);
@@ -181,7 +182,6 @@
     const md = navigator.mediaSession && navigator.mediaSession.metadata;
     let title = md?.title || $(SEL.title)?.textContent?.trim() || "";
     let artist = md?.artist || "";
-    let album = md?.album || "";
     let art = "";
 
     if (md?.artwork?.length) {
@@ -190,17 +190,9 @@
     }
     if (!art) art = $(SEL.thumb)?.src || "";
 
-    // Player byline: "Artist • Album • Year" — with links.
-    const byline = $(SEL.byline);
-    let albumHref = "";
-    if (byline) {
-      const parts = byline.textContent.split("•").map((t) => t.trim()).filter(Boolean);
-      if (!artist) artist = parts[0] || "";
-      if (!album && parts.length > 2) album = parts[1];
-      const albumLink = $$("a", byline).find((a) => /browse\/MPRE/.test(a.href));
-      if (albumLink) albumHref = albumLink.href;
-    }
-    return { title, artist, album, albumHref, art: hiRes(art) };
+    // Player byline: "Artist • Album • Year".
+    if (!artist) artist = $(SEL.byline)?.textContent.split("•")[0].trim() || "";
+    return { title, artist, art: hiRes(art) };
   }
 
   const video = () => $(SEL.video);
@@ -246,7 +238,7 @@
 
   // ---------- UI ----------
 
-  let root, bgA, bgB, bgFront = "a", artImg, titleEl, artistEl, albumEl;
+  let root, bgA, bgB, bgFront = "a", artImg, titleEl, artistEl;
   let playBtn, repeatBtn, starBtn, moreBtn, queueBtn, volBtn, volPct, volWrap, seek, vol, tCur, tRem;
   let queuePanel, queueList, queueSig = "", menuEl = null;
   let open = false, timer = null, tick = 0, lastArt = "";
@@ -257,16 +249,6 @@
 
     titleEl = h("div", { class: "ytmnp-title" });
     artistEl = h("div", { class: "ytmnp-artist" });
-    albumEl = h("button", {
-      class: "ytmnp-album",
-      onclick: () => {
-        const href = albumEl.dataset.href;
-        if (!href) return;
-        close();
-        const a = $$("a", $(SEL.byline) || document.createElement("div")).find((x) => x.href === href);
-        a ? a.click() : (location.href = href);
-      },
-    });
 
     playBtn = iconButton("pause", "ytmnp-main", T.playPause, () => clickNative(SEL.playPause) || togglePlayFallback());
 
@@ -323,16 +305,12 @@
       h("div", { class: "ytmnp-top" }, [
         iconButton("back", "ytmnp-glass ytmnp-round", T.close, close),
         h("div", { class: "ytmnp-glass ytmnp-pill" }, [
-          iconButton("cast", "ytmnp-pill-btn", T.playingOn, () => {
-            close();
-            clickNative(SEL.cast);
-          }),
           queueBtn,
         ]),
       ]),
       h("div", { class: "ytmnp-stage" }, [
         h("div", { class: "ytmnp-left" }, [
-          h("div", { class: "ytmnp-meta" }, [titleEl, artistEl, albumEl]),
+          h("div", { class: "ytmnp-meta" }, [titleEl, artistEl]),
           h("div", { class: "ytmnp-controls" }, [
             iconButton("prev", "ytmnp-main", T.prev, () => clickNative(SEL.prev)),
             playBtn,
@@ -445,11 +423,14 @@
     }
 
     const rows = [];
+    const pending = []; // [iconSlot, nativeItem] whose native icon hasn't rendered yet
     for (const item of $$(SEL.menuItems, dd)) {
       if (item.hidden || item.offsetParent === null) continue;
       const text = ($(".text, yt-formatted-string", item)?.textContent || item.textContent).trim();
       if (!text) continue;
-      const nativeSvg = $("yt-icon svg, .icon svg", item);
+      const nativeSvg = nativeMenuIcon(item);
+      const iconSlot = h("span", { class: "ytmnp-menu-icon" }, [nativeSvg ? nativeSvg.cloneNode(true) : icon("note")]);
+      if (!nativeSvg) pending.push([iconSlot, item]);
       const isNav = item.tagName === "YTMUSIC-MENU-NAVIGATION-ITEM-RENDERER";
       rows.push(
         h(
@@ -466,7 +447,7 @@
               setTimeout(update, 300);
             },
           },
-          [h("span", { class: "ytmnp-menu-icon" }, [nativeSvg ? nativeSvg.cloneNode(true) : icon("note")]), h("span", { text })]
+          [iconSlot, h("span", { text })]
         )
       );
     }
@@ -483,7 +464,22 @@
     menuEl.style.left = `${left}px`;
     menuEl.style.bottom = `${window.innerHeight - r.top + 10}px`;
     requestAnimationFrame(() => menuEl?.classList.add("is-open"));
+
+    // YTM renders the item icons a moment after the dropdown opens: swap them in as they appear.
+    for (let tries = 0; pending.length && tries < 15 && menuEl; tries++) {
+      await sleep(100);
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const svg = nativeMenuIcon(pending[i][1]);
+        if (!svg) continue;
+        pending[i][0].replaceChildren(svg.cloneNode(true));
+        pending.splice(i, 1);
+      }
+    }
   }
+
+  // The icon's <svg>, skipping empty placeholders that have no shapes yet.
+  const nativeMenuIcon = (item) =>
+    $$("yt-icon svg, .icon svg, svg", item).find((svg) => svg.querySelector("path, use, circle, rect, polygon"));
 
   // dismissNative: also close the native dropdown (the user picked nothing).
   function closeMenu(dismissNative) {
@@ -520,12 +516,35 @@
     const thumbs = bridge("queueThumbs", { selector: SEL.queueItems })?.thumbs || [];
     return items.map((it, i) => ({
       el: it,
+      index: i,
       title: $(".song-title", it)?.textContent.trim() || "",
       artist: $(".byline", it)?.textContent.trim() || "",
       duration: $(".duration", it)?.textContent.trim() || "",
       thumb: realImg(thumbs[i]) || realImg($(".thumbnail img, yt-img-shadow img, img", it)?.src),
       current: it.hasAttribute("selected") || it.getAttribute("play-button-state") === "playing" || it.getAttribute("play-button-state") === "paused",
     }));
+  }
+
+  // A plain el.click() on a queue item doesn't switch tracks, so navigate to the
+  // item's endpoint from the main world; fall back to a full simulated mouse click.
+  function playQueueItem(q) {
+    const isCurrent = () => q.el.hasAttribute("selected") || q.el.getAttribute("play-button-state") === "playing";
+    if (!bridge("playQueueItem", { selector: SEL.queueItems, index: q.index })?.ok) simulateClick(q.el);
+    setTimeout(() => {
+      if (!isCurrent()) simulateClick(q.el);
+      renderQueue();
+    }, 800);
+  }
+
+  function simulateClick(item) {
+    const el = $(".song-info", item) || item;
+    const r = el.getBoundingClientRect();
+    const init = { bubbles: true, cancelable: true, composed: true, view: window, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    el.dispatchEvent(new PointerEvent("pointerdown", init));
+    el.dispatchEvent(new MouseEvent("mousedown", init));
+    el.dispatchEvent(new PointerEvent("pointerup", init));
+    el.dispatchEvent(new MouseEvent("mouseup", init));
+    el.dispatchEvent(new MouseEvent("click", init));
   }
 
   function renderQueue(scrollToCurrent = false) {
@@ -560,10 +579,7 @@
         "button",
         {
           class: `ytmnp-q-item${q.current ? " is-current" : ""}`,
-          onclick: () => {
-            ($(".song-info", q.el) || q.el).click();
-            setTimeout(() => renderQueue(), 300);
-          },
+          onclick: () => playQueueItem(q),
         },
         [
           art,
@@ -631,12 +647,6 @@
     titleEl.textContent = t.title;
     titleEl.title = t.title;
     artistEl.textContent = t.artist;
-    if (albumEl.dataset.album !== t.album) {
-      albumEl.dataset.album = t.album;
-      albumEl.replaceChildren(h("span", { text: t.album }), h("span", { class: "ytmnp-chev", text: "›" }));
-    }
-    albumEl.dataset.href = t.albumHref;
-    albumEl.style.visibility = t.album ? "visible" : "hidden";
 
     if (t.art && t.art !== lastArt) {
       lastArt = t.art;
@@ -675,7 +685,19 @@
     if (root.classList.contains("queue-open") && tick++ % 4 === 0) renderQueue();
   }
 
+  // The view is about the song, so leave YTM's video mode when opening it.
+  function switchToSong() {
+    const sw = $(SEL.avToggle);
+    if (!sw) return;
+    const inVideo =
+      sw.getAttribute("playback-mode") === "OMV_PREFERRED" || $("ytmusic-player-page")?.hasAttribute("video-mode");
+    if (!inVideo) return;
+    const btn = $(SEL.songButton) || $$("button, [role='tab']", sw)[0];
+    btn?.click();
+  }
+
   function openOverlay() {
+    switchToSong();
     if (!root) build();
     open = true;
     lastArt = "";

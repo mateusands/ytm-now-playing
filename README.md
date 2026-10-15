@@ -12,7 +12,7 @@ network requests of its own.
 
 ## Features
 
-- Title, artist and album (click the album to open it)
+- Title and artist
 - Previous / play-pause / next, seek by clicking or dragging the progress bar
 - Shuffle, repeat (off / all / one), like (★)
 - **More (`…`)**: the track's native menu (play next, add to queue, save to playlist, go to artist…)
